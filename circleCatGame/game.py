@@ -1,3 +1,5 @@
+import math
+
 import utils
 
 CONST_FOOD = "F" # cat food
@@ -30,7 +32,9 @@ class board():
 
     def init_board(self):
         # place cat in the center of the board
-        self.loc_dict[(self.n / 2, self.n / 2)] = CONST_CAT
+        cat_loc = int(self.n / 2)
+        self.loc_dict[(cat_loc, cat_loc)] = CONST_CAT
+
         # place mouses and  food
         self.random_place_mouse_food_dog(self.n_mouse, CONST_MOUSE)
         self.random_place_mouse_food_dog(self.n_food, CONST_FOOD)
@@ -148,5 +152,5 @@ class game:
             self.show()
 
 
-my_game = game(8, 2, 3, 1, 2) # 8x8 grid, 2 food, 3 mice, 1 dog, 2 interval
+my_game = game(11, 0, 0, 0, 1) # 8x8 grid, 2 food, 3 mice, 1 dog, 2 interval
 my_game.play_game()
