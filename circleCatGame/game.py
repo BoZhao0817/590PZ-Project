@@ -8,9 +8,9 @@ CONST_MOUSE = "M" # mouse
 CONST_EMPTY = "-" # empty
 CONST_OBSTACLE = "X" # obstacle
 CONST_DOG = "D" # dog
-POSSIBLE_DIRECTIONS = {'UP': (-1, 0), 'DOWN': (1, 0), 'LEFT': (0, -1), 'DOWN': (0, 1), 'UP-LEFT': (-1, -1),
-                       'UP-RIGHT': (-1, 1)}
-
+# 6 possible direction for a singe move
+POSSIBLE_DIRECTIONS = {'UP-Left': (-1, -1), 'UP-Right': (-1, 0), 'LEFT': (0, -1), 'Right': (0, 1), 'DOWN-LEFT': (1, -1),
+                       'DOWN-RIGHT': (1, 0)}
 
 class board():
     def __init__(self, n, n_food, n_mouse, n_dog):
