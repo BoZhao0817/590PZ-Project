@@ -9,8 +9,9 @@ CONST_EMPTY = "-" # empty
 CONST_OBSTACLE = "X" # obstacle
 CONST_DOG = "D" # dog
 # 6 possible direction for a singe move
-POSSIBLE_DIRECTIONS = {'UP-Left': (-1, -1), 'UP-Right': (-1, 0), 'LEFT': (0, -1), 'Right': (0, 1), 'DOWN-LEFT': (1, -1),
-                       'DOWN-RIGHT': (1, 0)}
+POSSIBLE_DIRECTIONS = {'UP-Left': (-1, -1), 'UP-Right': (-1, 0), 
+                        'LEFT': (0, -1), 'Right': (0, 1), 'DOWN-LEFT': (1, -1),
+                        'DOWN-RIGHT': (1, 0)}
 
 class board():
     def __init__(self, n, n_food, n_mouse, n_dog):
@@ -25,10 +26,10 @@ class board():
             return self.loc_dict[loc]
         return CONST_EMPTY
 
-    def random_place_mouse_food_dog(self, n_times, noodeType):
+    def random_place_mouse_food_dog(self, n_times, nodeType):
         for i in range(n_times):
             loc = utils.generate_random_locations(self.n, self.loc_dict)
-            self.loc_dict[loc] = noodeType
+            self.loc_dict[loc] = nodeType
 
     def init_board(self):
         # place cat in the center of the board
@@ -101,6 +102,7 @@ class human:
         move_to = self.where_to_move(self.board)
         self.board.add_obstacle(move_to)
 
+
 class cat:
     def __init__(self, board):
         self.board = board
@@ -156,5 +158,5 @@ class game:
             self.show()
 
 
-my_game = game(11, 0, 0, 0, 1) # 8x8 grid, 2 food, 3 mice, 1 dog, 2 interval
+my_game = game(11, 0, 0, 0, 1)  # 8x8 grid, 2 food, 3 mice, 1 dog, 2 interval
 my_game.play_game()
