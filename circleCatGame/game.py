@@ -43,7 +43,7 @@ class board():
     def show_board(self):
         for i in range(self.n):
             to_print = []
-            # change the board to hexagon
+            # draw the board to hexagon
             if i%2 == 0:
                 to_print.insert(0, "")
             for j in range(self.n):
