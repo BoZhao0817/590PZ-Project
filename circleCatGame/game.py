@@ -8,6 +8,7 @@ CONST_MOUSE = "M"  # mouse
 CONST_EMPTY = "-"  # empty
 CONST_OBSTACLE = "X"  # obstacle
 CONST_DOG = "D"  # dog
+MAX_INT = 2**31 - 1
 # 6 possible direction for a singe move
 DIRECTIONS = {(-1, -1), (-1, 0), (0, -1),
               (0, 1), (1, -1), (1, 0)}
@@ -111,7 +112,7 @@ class Human:
             input_str = input("Enter your move : ")
             i, j = input_str.split(',')
             input_move = (int(i), int(j))
-            if utils.check_valid_move(board, input_move):
+            if utils.check_valid_move(board.loc_dict, board.n, input_move, CONST_OBSTACLE):
                 return input_move
             print('Please enter a valid move')
 
@@ -126,16 +127,8 @@ class Cat:
         pass
 
     def move(self):
-        move_to = self.minimax()
-        return 0, 0
-
-    def is_lose(self):
-        return False
-    # win or lose
-    # cat win, human lose - cat escaped + eat mouse
-    # human win, cat lose - cat no where to go
-    # careful with this situation:
-    #  cat can still go, but no chance to win
+        random_move = random.sample(DIRECTIONS, 1)[0]
+        return self.loc[0] + random_move[0], self.loc[1] + random_move[1]
 
 
 class Dog:
@@ -150,31 +143,74 @@ class Dog:
 
 class Game:
     def __init__(self, n, n_food, n_mouse, n_dog, dog_move_interval):
-        assert n_dog == 1, "sorry, we only support one dog mode so far"
-
+        assert n_food == 0, "sorry, this version doesn't support food"
+        self.size = n
         # board
         self.status = Board(n, n_food, n_mouse, n_dog)
         self.status.init_board()
         # human
         self.human = Human()
 
+
+
         # smart cat
-        cat_init_pos = self.status.get_loc(CONST_CAT)
+        cat_init_pos = self.status.get_loc(CONST_CAT)[0]  # there will only be one cat
         if n_mouse == 0:
             self.cat = Cat(cat_init_pos, is_eat=True)
         else:
             self.cat = Cat(cat_init_pos, is_eat=False)
 
+        # dogs
+        self.dogs = []
+        if n_dog != 0:
+            dog_init_pos = self.status.get_loc(CONST_DOG)
+            for pos in dog_init_pos:
+                new_dog = Dog(pos)
+                self.dogs.append(new_dog)
+
         # get the location and degree of freedom of mouse
         self.mouse_loc = self.status.get_loc(CONST_MOUSE)
         self.mouse_df = {loc: 6 for loc in self.mouse_loc}
+        self.init_mouse_df()
+
+
+        # interval
+        # if dog_move_interval == MAX_INT, means dog should be keep stationary
+        self.interval = dog_move_interval
+
+
+    def init_mouse_df(self):
+        """
+        initialize the freedom of mice
+        """
+        n_mouse = len(self.mouse_loc)
         for i in range(n_mouse):
             base_mouse_loc = self.mouse_loc[i]
             x, y = base_mouse_loc
-            if x == 0 or x == n:
-                self.mouse_df[base_mouse_loc] -= 1
-            if y == 0 or y == n:
-                self.mouse_df[base_mouse_loc] -= 1
+
+            # if the mouse is on the boarder
+            if x % 2 == 0:
+                if y == 0:
+                    self.mouse_df[base_mouse_loc] -= 1
+                elif y == self.size - 1:
+                    self.mouse_df[base_mouse_loc] -= 3
+            else:
+                if y == 0:
+                    self.mouse_df[base_mouse_loc] -= 3
+                else:
+                    self.mouse_df[base_mouse_loc] -= 1
+            # if x == 0 or x == self.size:
+            #     self.mouse_df[base_mouse_loc] -= 2
+            # if y == 0 or y == self.size:
+            #     if x % 2 == 0:
+            #         self.mouse_df[base_mouse_loc] -= 3
+            #     else:
+            #         self.mouse_df[base_mouse_loc] -= 2
+
+            for dog in self.dogs:
+                dog_loc = dog.loc
+                if utils.is_adjacent(dog_loc, base_mouse_loc):
+                    self.mouse_df[base_mouse_loc] -= 1
 
             for j in range(i + 1, n_mouse):
                 new_mouse_loc = self.mouse_loc[j]
@@ -182,16 +218,7 @@ class Game:
                     self.mouse_df[base_mouse_loc] -= 1
                     self.mouse_df[new_mouse_loc] -= 1
 
-        # dogs
-        if n_dog != 0:
-            self.dogs = []
-            dog_init_pos = self.status.get_loc(CONST_DOG)
-            for pos in dog_init_pos:
-                new_dog = Dog(pos)
-                self.dogs.append(new_dog)
-        # interval
-        # if dog_move_interval == MAX_INT, means dog should be keep stationary
-        self.interval = dog_move_interval
+
 
     def play_game(self):
         num_round = 0
@@ -199,7 +226,7 @@ class Game:
         self.status.show_board()
         while True:
             # human round
-            print('HUMAN round')
+            print("HUMAN's turn")
             human_move = self.human.move(self.status)
             self.status.update_board_human(human_move)
             self.status.show_board()
@@ -212,23 +239,8 @@ class Game:
                 print("You win!")
                 break
 
-            # cat round
-            print('CAT round')
-            new_cat_loc = self.cat.move()
-            self.status.update_board_animal(self.cat.loc, new_cat_loc, CONST_CAT)
-            self.cat.loc = new_cat_loc
-            self.status.show_board()
-            for loc in self.mouse_loc:
-                if utils.is_adjacent(loc, new_cat_loc):
-                    self.cat.eat_mouse = True
-                    break
-            # cat tell us if we win
-            if self.cat.is_lose():
-                print('Congratulations! Victory')
-                return
-
             # dog round
-            if num_round % self.interval == 0:
+            if len(self.dogs) != 0 and (num_round+1) % self.interval == 0:
                 for i in range(len(self.dogs)):
                     print('DOG no.{} round'.format(i))
                     new_dog = self.dogs[i]
@@ -236,15 +248,41 @@ class Game:
                     self.status.update_board_animal(new_dog.loc, new_dog_loc, CONST_DOG)
                     self.dogs[i].loc = new_dog_loc
                     if utils.is_adjacent(new_dog_loc, self.cat.loc):
-                        print("CAT was catched by DOGS!!")
+                        print("CAT was caught by DOGS!!")
                         print("You win by chance")
                         self.status.show_board()
                         return
+
                 self.status.show_board()
+            # cat round
+            print('CAT round')
+            while True:
+                new_cat_loc = self.cat.move()
+                if new_cat_loc not in self.status.loc_dict:
+                    break
+            if new_cat_loc[0] < 0 or new_cat_loc[0] >= self.size or \
+                    new_cat_loc[1] < 0 or new_cat_loc[1] >= self.size:
+                print("Ooops! You let the cat escaped!")
+                print("You lost")
+                break
+
+            self.status.update_board_animal(self.cat.loc, new_cat_loc, CONST_CAT)
+            self.cat.loc = new_cat_loc
+            self.status.show_board()
+            for loc in self.mouse_loc:
+                if utils.is_adjacent(loc, new_cat_loc):
+                    self.cat.eat_mouse = True
+                    break
 
             num_round += 1
 
 
 if __name__ == "__main__":
-    my_game = Game(11, 0, 0, 0, 1)  # 8x8 grid, 2 food, 3 mice, 1 dog, 2 interval
+    size = 6
+    n_food = 0
+    n_mouse = 1
+    n_dog = 0
+    # if dog_move_interval == MAX_INT, means dog should be keep stationary
+    dog_move_interval = 1
+    my_game = Game(size, n_food, n_mouse, n_dog, dog_move_interval)  # 8x8 grid, 2 food, 3 mice, 1 dog, 2 interval
     my_game.play_game()
