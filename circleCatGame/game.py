@@ -10,8 +10,10 @@ CONST_OBSTACLE = "X"  # obstacle
 CONST_DOG = "D"  # dog
 MAX_INT = 2**31 - 1
 # 6 possible direction for a singe move
-DIRECTIONS = {(-1, -1), (-1, 0), (0, -1),
-              (0, 1), (1, -1), (1, 0)}
+DIRECTIONS = {
+    1: [(-1, -1), (-1, 0), (0, -1), (0, 1), (1, -1), (1, 0)],  # if row_num % 2 == 1
+    0: [(-1, 0), (-1, 1), (0, -1), (0, 1), (1, 0), (1, 1)]   # if row_num % 2 == 0
+}
 
 
 class Board:
@@ -94,7 +96,8 @@ class Board:
         """
         move_direction = []
         new_locs = []
-        for direction in DIRECTIONS:
+        is_even_row = int(loc[0]%2)
+        for direction in DIRECTIONS[is_even_row]:
             i = loc[0] + direction[0]
             j = loc[1] + direction[1]
             if utils.check_valid_move(self.loc_dict, self.n, (i, j), who):
@@ -127,7 +130,8 @@ class Cat:
         pass
 
     def move(self):
-        random_move = random.sample(DIRECTIONS, 1)[0]
+        is_even_row = int(self.loc % 2)
+        random_move = random.sample(DIRECTIONS[is_even_row], 1)[0]
         return self.loc[0] + random_move[0], self.loc[1] + random_move[1]
 
 
@@ -136,7 +140,8 @@ class Dog:
         self.loc = loc
 
     def get_new_loc(self):
-        direction = random.sample(DIRECTIONS, 1)[0]
+        is_even_row = int(self.loc % 2)
+        direction = random.sample(DIRECTIONS[is_even_row], 1)[0]
         new_loc = self.loc[0] + direction[0], self.loc[1] + direction[1]
         return new_loc
 

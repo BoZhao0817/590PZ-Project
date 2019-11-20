@@ -8,8 +8,10 @@ CONST_OBSTACLE = "X"  # obstacle
 CONST_DOG = "D"  # dog
 
 # 6 possible direction for a singe move
-DIRECTIONS = {(-1, -1), (-1, 0), (0, -1),
-              (0, 1), (1, -1), (1, 0)}
+DIRECTIONS = {
+    1: [(-1, -1), (-1, 0), (0, -1), (0, 1), (1, -1), (1, 0)],  # if row_num % 2 == 1
+    0: [(-1, 0), (-1, 1), (0, -1), (0, 1), (1, 0), (1, 1)]   # if row_num % 2 == 0
+}
 
 def generate_random_locations(n, loc_dict):
     # within a board n*n
@@ -42,8 +44,12 @@ def check_valid_move(loc_dict, board_size, input_move, who=CONST_CAT):
 def is_adjacent(loc1, loc2):
     x1, y1 = loc1
     x2, y2 = loc2
-    for direction in DIRECTIONS:
+    is_even_row = int(x1 % 2)
+    for direction in DIRECTIONS[is_even_row]:
         delta_x, delta_y = direction[0], direction[1]
         if x1+delta_x == x2 and y1+delta_y == y2:
             return True
     return False
+
+
+
