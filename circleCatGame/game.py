@@ -1,19 +1,19 @@
 import math
-
+import random
 import utils
 
-CONST_FOOD = "F" # cat food
-CONST_CAT = "C" # cat
-CONST_MOUSE = "M" # mouse
-CONST_EMPTY = "-" # empty
-CONST_OBSTACLE = "X" # obstacle
-CONST_DOG = "D" # dog
+CONST_FOOD = "F"  # cat food
+CONST_CAT = "C"  # cat
+CONST_MOUSE = "M"  # mouse
+CONST_EMPTY = "-"  # empty
+CONST_OBSTACLE = "X"  # obstacle
+CONST_DOG = "D"  # dog
 # 6 possible direction for a singe move
-POSSIBLE_DIRECTIONS = {'UP-Left': (-1, -1), 'UP-Right': (-1, 0), 
-                        'LEFT': (0, -1), 'Right': (0, 1), 'DOWN-LEFT': (1, -1),
-                        'DOWN-RIGHT': (1, 0)}
+DIRECTIONS = {(-1, -1), (-1, 0), (0, -1),
+              (0, 1), (1, -1), (1, 0)}
 
-class board():
+
+class Board:
     def __init__(self, n, n_food, n_mouse, n_dog):
         self.n = n
         self.n_food = n_food
@@ -41,11 +41,28 @@ class board():
         self.random_place_mouse_food_dog(self.n_food, CONST_FOOD)
         self.random_place_mouse_food_dog(self.n_dog, CONST_DOG)
 
+    def update_board_human(self, loc):
+        """
+        update loc_dict
+        don't check if loc is valid here
+        should be checked before passing parameters in
+        """
+        self.loc_dict[loc] = CONST_OBSTACLE
+
+    def update_board_animal(self, prev_loc, new_loc, who):
+        """
+        update loc_dict
+        don't check if new_loc and prev_loc are valid here
+        should be checked before passing parameters in
+        """
+        self.loc_dict.pop(prev_loc)
+        self.loc_dict[new_loc] = who
+
     def show_board(self):
         for i in range(self.n):
             to_print = []
             # draw the board to hexagon
-            if i%2 == 0:
+            if i % 2 == 0:
                 to_print.insert(0, "")
             for j in range(self.n):
                 if (i, j) in self.loc_dict:
@@ -54,109 +71,180 @@ class board():
                     to_print.append("-")
             print(' '.join(to_print))
 
-
     def add_obstacle(self, loc):
         self.loc_dict[loc] = CONST_OBSTACLE
 
-    def get_cat_loc(self):
-        pass
+    def get_loc(self, who):
+        """
+        :param who: can be chosen from ["F","C","M","X","D"]
+        :return: list of list
+        """
+        assert who in [CONST_FOOD, CONST_CAT, CONST_MOUSE, CONST_OBSTACLE, CONST_DOG], \
+            "input must be in ['F','C','M','X','D']"
 
-    def get_dog_loc(self):
-        pass
+        loc = [key for key, val in self.loc_dict.items() if val == who]
+        return loc
 
-    # FOR CAT
-    def get_valid_moves(self, loc):
-        moves = []
+    def get_valid_moves(self, loc, who="Cat"):
+        """
+        :param loc: a tuple of two element
+        :param who: either be ['Cat', 'Dog', 'Human'], remember only cat can escape from the board
+        :return:
+        """
+        move_direction = []
         new_locs = []
-        for direction in POSSIBLE_DIRECTIONS:
+        for direction in DIRECTIONS:
             i = loc[0] + direction[0]
             j = loc[1] + direction[1]
-            if (i,j) not in self.loc_dict:
-                # can reach outside, no need to check i,j index
-                moves.append(direction)
+            if utils.check_valid_move(self.loc_dict, self.n, (i, j), who):
+                move_direction.append(direction)
                 new_locs.append((i, j))
-        return moves, new_locs
+        return move_direction, new_locs
 
 
-class human:
-    def __init__(self, board):
-        self.board = board
-        self.n = board.n
+class Human:
+    def __init__(self):
+        pass
 
-    def check_valid_move(self, board, input_move):
-        i, j = input_move
-        if (i, j) not in board.loc_dict and i >= 0 and i < board.n and j >= 0 and j < board.n:
-            return True
-        return False
-
-    def where_to_move(self, board):
+    def move(self, board):
         while True:
             input_str = input("Enter your move : ")
             i, j = input_str.split(',')
             input_move = (int(i), int(j))
-            if self.check_valid_move(board, input_move):
+            if utils.check_valid_move(board, input_move):
                 return input_move
             print('Please enter a valid move')
 
-    def human_move(self):
-        move_to = self.where_to_move(self.board)
-        self.board.add_obstacle(move_to)
 
-
-class cat:
-    def __init__(self, board):
-        self.board = board
+class Cat:
+    def __init__(self, loc, is_eat):
+        self.loc = loc
+        self.eat_mouse = is_eat
+        self.met_dog = False
 
     def minimax(self):
         pass
 
-    def cat_move(self):
+    def move(self):
         move_to = self.minimax()
-        pass
+        return 0, 0
 
     def is_lose(self):
         return False
     # win or lose
-        # cat win, human lose - cat escaped + eat mouse
-        # human win, cat lose - cat no where to go
+    # cat win, human lose - cat escaped + eat mouse
+    # human win, cat lose - cat no where to go
     # careful with this situation:
     #  cat can still go, but no chance to win
 
 
-class game:
-    def __init__(self, n, n_food, n_mouse, n_dog, interval):
-        # board
-        self.board = board(n, n_food, n_mouse, n_dog)
-        self.board.init_board()
-        # human
-        self.human = human(self.board)
-        # smart cat
-        self.cat = cat(self.board)
-        # interval
-        self.interval = interval
+class Dog:
+    def __init__(self, loc):
+        self.loc = loc
 
-    def show(self):
-        self.board.show_board()
+    def get_new_loc(self):
+        direction = random.sample(DIRECTIONS, 1)[0]
+        new_loc = self.loc[0] + direction[0], self.loc[1] + direction[1]
+        return new_loc
+
+
+class Game:
+    def __init__(self, n, n_food, n_mouse, n_dog, dog_move_interval):
+        assert n_dog == 1, "sorry, we only support one dog mode so far"
+
+        # board
+        self.status = Board(n, n_food, n_mouse, n_dog)
+        self.status.init_board()
+        # human
+        self.human = Human()
+
+        # smart cat
+        cat_init_pos = self.status.get_loc(CONST_CAT)
+        if n_mouse == 0:
+            self.cat = Cat(cat_init_pos, is_eat=True)
+        else:
+            self.cat = Cat(cat_init_pos, is_eat=False)
+
+        # get the location and degree of freedom of mouse
+        self.mouse_loc = self.status.get_loc(CONST_MOUSE)
+        self.mouse_df = {loc: 6 for loc in self.mouse_loc}
+        for i in range(n_mouse):
+            base_mouse_loc = self.mouse_loc[i]
+            x, y = base_mouse_loc
+            if x == 0 or x == n:
+                self.mouse_df[base_mouse_loc] -= 1
+            if y == 0 or y == n:
+                self.mouse_df[base_mouse_loc] -= 1
+
+            for j in range(i + 1, n_mouse):
+                new_mouse_loc = self.mouse_loc[j]
+                if utils.is_adjacent(base_mouse_loc, new_mouse_loc):
+                    self.mouse_df[base_mouse_loc] -= 1
+                    self.mouse_df[new_mouse_loc] -= 1
+
+        # dogs
+        if n_dog != 0:
+            self.dogs = []
+            dog_init_pos = self.status.get_loc(CONST_DOG)
+            for pos in dog_init_pos:
+                new_dog = Dog(pos)
+                self.dogs.append(new_dog)
+        # interval
+        # if dog_move_interval == MAX_INT, means dog should be keep stationary
+        self.interval = dog_move_interval
 
     def play_game(self):
+        num_round = 0
+        print("GAME start!!")
+        self.status.show_board()
         while True:
             # human round
             print('HUMAN round')
-            self.show()
-            self.human.human_move()
+            human_move = self.human.move(self.status)
+            self.status.update_board_human(human_move)
+            self.status.show_board()
+
+            for loc in self.mouse_loc:
+                if utils.is_adjacent(loc, human_move):
+                    self.mouse_df[loc] -= 1
+            if sum(self.mouse_df.values()) == 0:
+                print("cat can't eat any mouse, starved to death...")
+                print("You win!")
+                break
+
             # cat round
             print('CAT round')
-            self.cat.cat_move()
-            self.show()
+            new_cat_loc = self.cat.move()
+            self.status.update_board_animal(self.cat.loc, new_cat_loc, CONST_CAT)
+            self.cat.loc = new_cat_loc
+            self.status.show_board()
+            for loc in self.mouse_loc:
+                if utils.is_adjacent(loc, new_cat_loc):
+                    self.cat.eat_mouse = True
+                    break
             # cat tell us if we win
             if self.cat.is_lose():
                 print('Congratulations! Victory')
                 return
+
             # dog round
-            print('DOG round')
-            # add your codes
-            self.show()
+            if num_round % self.interval == 0:
+                for i in range(len(self.dogs)):
+                    print('DOG no.{} round'.format(i))
+                    new_dog = self.dogs[i]
+                    new_dog_loc = new_dog.get_new_loc()
+                    self.status.update_board_animal(new_dog.loc, new_dog_loc, CONST_DOG)
+                    self.dogs[i].loc = new_dog_loc
+                    if utils.is_adjacent(new_dog_loc, self.cat.loc):
+                        print("CAT was catched by DOGS!!")
+                        print("You win by chance")
+                        self.status.show_board()
+                        return
+                self.status.show_board()
+
+            num_round += 1
 
 
-my_game = game(11, 0, 0, 0, 1)  # 8x8 grid, 2 food, 3 mice, 1 dog, 2 interval
-my_game.play_game()
+if __name__ == "__main__":
+    my_game = Game(11, 0, 0, 0, 1)  # 8x8 grid, 2 food, 3 mice, 1 dog, 2 interval
+    my_game.play_game()
