@@ -178,7 +178,7 @@ class Cat:
             if new_score > score:
                 next_loc = new_loc
                 score = new_score
-                print("find a better one:", next_loc, new_loc, score)
+                # print("find a better one:", next_loc, new_loc, score)
         return next_loc
 
     def minimax(self, loc, depth, alpha, beta, visited, is_cat=True):
@@ -268,8 +268,8 @@ class Cat:
                             ((i, j) not in visited["human"]):
                         visited["human"].add((i, j))
                         self.board.loc_dict[(i, j)] = CONST_OBSTACLE
-                        print((i, j))
-                        self.board.show_board()
+                        # print((i, j))
+                        # self.board.show_board()
                         score = self.minimax(loc, depth - 1, alpha, beta, visited,
                                              is_cat=True)
                         self.board.loc_dict.pop((i, j))
