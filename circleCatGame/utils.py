@@ -23,7 +23,7 @@ def generate_random_locations(n, loc_dict):
             return i, j
 
 
-def check_valid_move(loc_dict, board_size, input_move, who=CONST_CAT):
+def check_valid_move(loc_dict, board_size, input_move, who=CONST_CAT, verbose=True):
     i, j = input_move
     if who.strip().upper() == CONST_CAT:
         if (i, j) not in loc_dict:
@@ -34,10 +34,12 @@ def check_valid_move(loc_dict, board_size, input_move, who=CONST_CAT):
         if (i, j) not in loc_dict:
             return True
         else:
-            print("This position has been occupied")
+            if verbose:
+                print("This position has been occupied")
             return False
     else:
-        print("Your move is out of boundary")
+        if verbose:
+            print("Your move is out of boundary")
         return False
 
 

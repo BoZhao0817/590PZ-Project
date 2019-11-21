@@ -1,6 +1,6 @@
-import math
 import random
-import utils
+import copy
+from .utils import check_valid_move, generate_random_locations, is_adjacent
 
 CONST_FOOD = "F"  # cat food
 CONST_CAT = "C"  # cat
@@ -32,7 +32,7 @@ class Board:
 
     def random_place_mouse_food_dog(self, n_times, nodeType):
         for i in range(n_times):
-            loc = utils.generate_random_locations(self.n, self.loc_dict)
+            loc = generate_random_locations(self.n, self.loc_dict)
             self.loc_dict[loc] = nodeType
 
     def init_board(self):
@@ -63,8 +63,9 @@ class Board:
         self.loc_dict[new_loc] = who
 
     def show_board(self):
+        print(' '.join(list(range(self.n))))
         for i in range(self.n):
-            to_print = []
+            to_print = [str(i)]
             # draw the board to hexagon
             if i % 2 == 0:
                 to_print.insert(0, "")
@@ -101,7 +102,7 @@ class Board:
         for direction in DIRECTIONS[is_even_row]:
             i = loc[0] + direction[0]
             j = loc[1] + direction[1]
-            if utils.check_valid_move(self.loc_dict, self.n, (i, j), who):
+            if check_valid_move(self.loc_dict, self.n, (i, j), who):
                 move_direction.append(direction)
                 new_locs.append((i, j))
         return move_direction, new_locs
@@ -116,21 +117,177 @@ class Human:
             input_str = input("Enter your move : ")
             i, j = input_str.split(',')
             input_move = (int(i), int(j))
-            if utils.check_valid_move(board.loc_dict, board.n, input_move, CONST_OBSTACLE):
+            if check_valid_move(board.loc_dict, board.n, input_move, CONST_OBSTACLE):
                 return input_move
             print('Please enter a valid move')
 
 
 class Cat:
-    def __init__(self, loc, is_eat):
+    def __init__(self, loc, is_eat, search_depth=5):
         self.loc = loc
         self.eat_mouse = is_eat
         self.met_dog = False
+        # each position corresponding a score
+        # each key is location, each value is a score
+        self.minimax_score = {}
+        self.search_depth = search_depth
 
-    def minimax(self):
-        pass
+    def rearrange_direction(self, loc, directions):
+        direction_score = {}
+        for d in directions:
+            new_loc = loc[0] + d[0], loc[1] + d[1]
+            final_score = float("-inf")
+            for key, val in self.mouse_df.items():
+                dist = abs(key[0] - new_loc[0]) + abs(key[1] - new_loc[1])
+                if dist == 0:  # the cat is next to a mouse, of course eat it
+                    direction_score[-1000000] = d
+                    break
+                final_score = max(final_score, val / dist)
+            direction_score[final_score] = d
+        sorted_direction = [direction_score[key] for key in sorted(direction_score.keys())]
+        return sorted_direction
 
-    def move(self, status):
+    def minimax_move(self):
+        curr_direction = DIRECTIONS[int(self.loc[0] % 2)]
+        curr_direction = self.rearrange_direction(self.loc, curr_direction)
+        next_loc = self.loc
+        score = float("-inf")
+        init_alpha, init_beta = float("-inf"), float("inf")
+        visited = {"human": set([]), "cat": set([])}
+        for directions in curr_direction:
+            new_loc = (self.loc[0] + directions[0], self.loc[1] + directions[1])
+
+            if new_loc not in self.board.loc_dict:  # this position is empty
+                self.board.loc_dict.pop(self.loc)
+                self.board.loc_dict[new_loc] = CONST_CAT
+                # visited["cat"].add(new_loc)
+                new_score = self.minimax(new_loc, self.search_depth, init_alpha, init_beta, visited, is_cat=False)
+                self.board.loc_dict.pop(new_loc)
+                self.board.loc_dict[self.loc] = CONST_CAT
+
+            elif new_loc in self.board.loc_dict and self.board.loc_dict[new_loc] == CONST_MOUSE:  # this position is a mouse
+                self.board.loc_dict.pop(self.loc)
+                self.board.loc_dict[new_loc] = CONST_CAT
+                # visited["cat"].add(new_loc)
+                new_score = self.minimax(new_loc, self.search_depth, init_alpha, init_beta, visited, is_cat=False)
+                self.board.loc_dict[new_loc] = CONST_MOUSE
+                self.board.loc_dict[self.loc] = CONST_CAT
+            else:
+                continue
+
+            if new_score > score:
+                next_loc = new_loc
+                score = new_score
+                print("find a better one:", next_loc, new_loc, score)
+        return next_loc
+
+    def minimax(self, loc, depth, alpha, beta, visited, is_cat=True):
+        # current position: self.loc
+        # maximum depth: self.search_depth
+        # status: used to find available next step
+        # mouse_df: used to find the final score --
+        #           currently the score is set to the degree of freedom of each mouse
+        if loc in self.mouse_df:
+            print("find a mouse to eat:", loc)
+            size = self.board.n - 1
+            x_dist = min(loc[0], size - loc[0])
+            y_dist = min(loc[1], size - loc[1])
+            dist = min(x_dist, y_dist)
+            if dist == 0:
+                return float("inf")
+            return self.mouse_df[loc] / dist
+
+        if depth == 0:
+            # score is calculated as df / Euclidean distance
+            # probably need to be improved
+            final_score = float("-inf")
+            print("reaches the maximum depth")
+            for key, val in self.mouse_df.items():
+                dist = abs(key[0] - loc[0]) + abs(key[1] - loc[1])
+                final_score = max(final_score, val / dist)
+                print(val, dist, key, loc)
+                print(val / dist, key)
+            return final_score
+
+        curr_directions = DIRECTIONS[int(loc[0] % 2)]
+        curr_directions = self.rearrange_direction(self.loc, curr_directions)
+        if is_cat:
+            if loc in self.minimax_score:
+                return self.minimax_score[loc]
+
+            max_val = float("-inf")
+            for directions in curr_directions:
+                next_loc = loc[0] + directions[0], loc[1] + directions[1]
+                if next_loc[0] < 0 or next_loc[0] >= self.board.n - 1 or next_loc[1] < 0 or next_loc[
+                    1] >= self.board.n - 1:
+                    continue
+                if next_loc in visited["cat"]:
+                    continue
+
+                if next_loc not in self.board.loc_dict:
+
+                    # visited["cat"].add(next_loc)
+
+                    self.board.loc_dict.pop(loc)
+                    self.board.loc_dict[next_loc] = CONST_CAT
+                    print("cat move:", loc, next_loc)
+                    self.board.show_board()
+                    score = self.minimax(next_loc, depth - 1, alpha, beta, visited,
+                                         is_cat=False)
+
+                    self.board.loc_dict.pop(next_loc)
+                    self.board.loc_dict[loc] = CONST_CAT
+                elif next_loc in self.board.loc_dict and self.board.loc_dict[next_loc] == CONST_MOUSE:
+                    self.board.loc_dict.pop(loc)
+                    self.board.loc_dict[next_loc] = CONST_CAT
+                    print("cat move:", loc, next_loc)
+                    self.board.show_board()
+                    score = self.minimax(next_loc, depth - 1, alpha, beta, visited,
+                                         is_cat=False)
+
+                    self.board.loc_dict[next_loc] = CONST_MOUSE
+                    self.board.loc_dict[loc] = CONST_CAT
+                else:
+                    continue
+
+                max_val = max(max_val, score)
+                alpha = max(alpha, score)
+                print("alpha, beta for cat turn:", alpha, beta)
+                if beta <= alpha:
+                    break
+            # print("cat returned", max_val, alpha, beta, next_loc)
+            self.minimax_score[loc] = max_val
+            return max_val
+
+        else:  # it's human's turn. Has n^2 choices.
+            min_val = float("inf")
+            for i in range(self.board.n):
+                for j in range(self.board.n):
+                    if check_valid_move(self.board.loc_dict, self.board.n, (i, j), who=CONST_OBSTACLE,
+                                        verbose=False) and \
+                            ((i, j) not in visited["human"]):
+                        visited["human"].add((i, j))
+                        self.board.loc_dict[(i, j)] = CONST_OBSTACLE
+                        print((i, j))
+                        self.board.show_board()
+                        score = self.minimax(loc, depth - 1, alpha, beta, visited,
+                                             is_cat=True)
+                        self.board.loc_dict.pop((i, j))
+                        visited["human"].remove((i, j))
+                        min_val = min(min_val, score)
+                        beta = min(beta, score)
+                        print("alpha, beta for human turn:", alpha, beta)
+                        if beta <= alpha:
+                            # print("human returned:", (i, j), min_val, alpha, beta, score)
+                            return min_val
+            # print(visited)
+            # print("human used all loop returned:", (i, j), min_val, alpha, beta, score)
+            return min_val
+
+    def djikstra_move(self, status):
+        return 0, 0
+
+    def move(self, status, score, method="minimax"):
         # first should detect is there a mouse around
         # if yes, must go to the mouse
         # strategy:
@@ -139,9 +296,21 @@ class Cat:
         #    reference: https://stackoverflow.com/questions/8641388/classic-game-circle-the-cat-algorithm
         # TODO: improve this strategy, because this might be a trap by human
         # TODO: if got food, can move two steps
-        is_even_row = int(self.loc[0] % 2)
-        random_move = random.sample(DIRECTIONS[is_even_row], 1)[0]
-        return self.loc[0] + random_move[0], self.loc[1] + random_move[1]
+        self.board = status
+        self.mouse_df = score
+        if not self.eat_mouse:
+            if method == "minimax":
+                next_loc = self.minimax_move()
+            elif method == "Djikstra":
+                next_loc = self.djikstra_move(status)
+            else:  # randomly pick one direction
+                curr_direction = DIRECTIONS[int(self.loc[0] % 2)]
+                next_direction = random.sample(curr_direction, 1)[0]
+                next_loc = (self.loc[0] + next_direction[0], self.loc[1] + next_direction[1])
+        else:
+            next_loc = self.djikstra_move(status)
+
+        return next_loc
 
 
 class Dog:
@@ -224,12 +393,12 @@ class Game:
 
             for dog in self.dogs:
                 dog_loc = dog.loc
-                if utils.is_adjacent(dog_loc, base_mouse_loc):
+                if is_adjacent(dog_loc, base_mouse_loc):
                     self.mouse_df[base_mouse_loc] -= 1
 
             for j in range(i + 1, n_mouse):
                 new_mouse_loc = self.mouse_loc[j]
-                if utils.is_adjacent(base_mouse_loc, new_mouse_loc):
+                if is_adjacent(base_mouse_loc, new_mouse_loc):
                     self.mouse_df[base_mouse_loc] -= 1
                     self.mouse_df[new_mouse_loc] -= 1
 
@@ -245,7 +414,7 @@ class Game:
             self.status.show_board()
 
             for loc in self.mouse_loc:
-                if utils.is_adjacent(loc, human_move):
+                if is_adjacent(loc, human_move):
                     self.mouse_df[loc] -= 1
             if sum(self.mouse_df.values()) == 0:
                 print("cat can't eat any mouse, starved to death...")
@@ -260,7 +429,7 @@ class Game:
                     new_dog_loc = new_dog.get_new_loc()
                     self.status.update_board_animal(new_dog.loc, new_dog_loc, CONST_DOG)
                     self.dogs[i].loc = new_dog_loc
-                    if utils.is_adjacent(new_dog_loc, self.cat.loc):
+                    if is_adjacent(new_dog_loc, self.cat.loc):
                         print("CAT was caught by DOGS!!")
                         print("You win by chance")
                         self.status.show_board()
@@ -270,7 +439,13 @@ class Game:
             # cat round
             print("CAT's turn")
             while True:
-                new_cat_loc = self.cat.move(self.status)
+                new_cat_loc = self.cat.move(copy.deepcopy(self.status), self.mouse_df, method="minimax")
+
+                if new_cat_loc in self.status.loc_dict and self.status.loc_dict[new_cat_loc] == CONST_MOUSE:  # cat eats a mouse
+                    self.cat.eat_mouse = True
+                    self.status.loc_dict.pop(new_cat_loc)
+                    break
+
                 if new_cat_loc not in self.status.loc_dict:
                     break
 
@@ -285,14 +460,3 @@ class Game:
             self.status.show_board()
 
             num_round += 1
-
-
-if __name__ == "__main__":
-    size = 11
-    n_food = 0
-    n_mouse = 3
-    n_dog = 0
-    # if dog_move_interval == MAX_INT, means dog should be keep stationary
-    dog_move_interval = MAX_INT
-    my_game = Game(size, n_food, n_mouse, n_dog, dog_move_interval)  # 8x8 grid, 2 food, 3 mice, 1 dog, 2 interval
-    my_game.play_game()
