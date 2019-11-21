@@ -63,12 +63,12 @@ class Board:
         self.loc_dict[new_loc] = who
 
     def show_board(self):
-        print(' '.join(list(range(self.n))))
+        print("   " + ' '.join(list(range(self.n))))
         for i in range(self.n):
-            to_print = [str(i)]
+            to_print = [str(i)+ " "]
             # draw the board to hexagon
             if i % 2 == 0:
-                to_print.insert(0, "")
+                to_print.insert(1, "")
             for j in range(self.n):
                 if (i, j) in self.loc_dict:
                     to_print.append(self.loc_dict[(i, j)])
