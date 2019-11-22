@@ -54,4 +54,6 @@ def is_adjacent(loc1, loc2):
     return False
 
 
+def is_on_border(size, loc):
+    return loc[0] == 0 or loc[1] == 0 or loc[0] == size-1 or loc[1] == size-1
 
