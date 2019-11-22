@@ -297,7 +297,6 @@ class Cat:
                 break
             dist += 1
             curr_len = len(bfs_q)
-            print(bfs_q)
             for i in range(curr_len):
                 new_node = heapq.heappop(bfs_q)
                 if is_on_border(self.board.n, new_node):
@@ -310,7 +309,6 @@ class Cat:
                     if check_valid_move(self.board.loc_dict, self.board.n, next_node, who=CONST_CAT):
                         heapq.heappush(bfs_q, next_node)
         return dist
-
 
     def dijkstra_move(self):
         #  check if the cat is on the border
@@ -332,18 +330,13 @@ class Cat:
             next_loc = self.loc[0] + d[0], self.loc[1] + d[1]
             if check_valid_move(self.board.loc_dict, self.board.n, next_loc):
                 if is_on_border(self.board.n, next_loc):
-                    print("directly return")
                     return next_loc
                 possible_loc.append(next_loc)
 
-
         final_loc = self.loc
         min_dist = float("inf")
-        print("all possible next step:", possible_loc)
         for loc in possible_loc:
-            print("start dijkstra, location is:", loc)
             dist = self.dijkstra_dist(loc)
-            print("start from:", loc,"have dist:", dist)
             if dist < min_dist:
                 min_dist = dist
                 final_loc = loc
@@ -379,10 +372,13 @@ class Dog:
     def __init__(self, loc):
         self.loc = loc
 
-    def get_new_loc(self):
+    def get_new_loc(self, board):
         is_even_row = int(self.loc[0] % 2)
         direction = random.sample(DIRECTIONS[is_even_row], 1)[0]
         new_loc = self.loc[0] + direction[0], self.loc[1] + direction[1]
+        while not check_valid_move(board.loc_dict, board.n, new_loc, who=CONST_DOG):
+            direction = random.sample(DIRECTIONS[is_even_row], 1)[0]
+            new_loc = self.loc[0] + direction[0], self.loc[1] + direction[1]
         return new_loc
 
 
@@ -538,10 +534,10 @@ class Game:
 
 if __name__ == "__main__":
     n_mouse = 0
-    board_size = 11
+    board_size = 5
     n_dog = 0
     n_food = 0
-    game = Game(n=board_size, n_food=n_food, n_mouse=n_mouse, n_dog=n_dog, dog_move_interval=MAX_INT)
+    game = Game(n=board_size, n_food=n_food, n_mouse=n_mouse, n_dog=n_dog, dog_move_interval=3)
     game.play_game()
 
 
