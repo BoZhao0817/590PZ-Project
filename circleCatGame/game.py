@@ -1,6 +1,7 @@
 import random
 import copy
 import heapq
+import time
 from utils import check_valid_move, generate_random_locations, is_adjacent, is_on_border
 # from utils import *
 
@@ -285,32 +286,44 @@ class Cat:
             # print("human used all loop returned:", (i, j), min_val, alpha, beta, score)
             return min_val
 
-    def dijkstra_dist(self, loc):
+    def dijkstra_dist(self, loc, target):
         # calculate distance from a specific loc to borders
         # using bfs
         bfs_q = [loc]
+        visited = set([])
         heapq.heapify(bfs_q)
         dist = 0
-        reach_border = False
+        reach_target = False
         while bfs_q:
-            if reach_border:
+            if reach_target:
                 break
             dist += 1
             curr_len = len(bfs_q)
             for i in range(curr_len):
                 new_node = heapq.heappop(bfs_q)
-                if is_on_border(self.board.n, new_node):
-                    reach_border = True
-                    break
+                visited.add(new_node)
+                if target == "border":
+                    if is_on_border(self.board.n, new_node):
+                        reach_target = True
+                        break
+                elif target == CONST_MOUSE:
+                    if self.board.loc_dict.get(new_node, 0) == CONST_MOUSE:
+                        reach_target = True
+                        break
+
                 is_even_row = int(new_node[0] % 2)
                 directions = DIRECTIONS[is_even_row]
                 for d in directions:
                     next_node = new_node[0] + d[0], new_node[1] + d[1]
-                    if check_valid_move(self.board.loc_dict, self.board.n, next_node, who=CONST_CAT):
+                    if check_valid_move(self.board.loc_dict, self.board.n, next_node, who=CONST_OBSTACLE, verbose=False) or \
+                            self.board.loc_dict.get(next_node, 0) == CONST_MOUSE:
+                        if next_node in visited:
+                            continue
                         heapq.heappush(bfs_q, next_node)
+                        visited.add(next_node)
         return dist
 
-    def dijkstra_move(self):
+    def dijkstra_move(self, target="border"):
         #  check if the cat is on the border
         if self.loc[0] == 0:
             return self.loc[0]-1, self.loc[1]
@@ -328,15 +341,21 @@ class Cat:
         possible_loc = []
         for d in directions:
             next_loc = self.loc[0] + d[0], self.loc[1] + d[1]
-            if check_valid_move(self.board.loc_dict, self.board.n, next_loc):
-                if is_on_border(self.board.n, next_loc):
-                    return next_loc
+            if check_valid_move(self.board.loc_dict, self.board.n, next_loc) or \
+                    self.board.loc_dict.get(next_loc, 0) == CONST_MOUSE:
+                if target == "border":
+                    if is_on_border(self.board.n, next_loc):
+                        return next_loc
+                elif target == CONST_MOUSE:
+                    if self.board.loc_dict.get(next_loc, 0) == CONST_MOUSE:
+                        return next_loc
                 possible_loc.append(next_loc)
 
         final_loc = self.loc
         min_dist = float("inf")
         for loc in possible_loc:
-            dist = self.dijkstra_dist(loc)
+            dist = self.dijkstra_dist(loc, target=target)
+            print("possible location:", loc, dist)
             if dist < min_dist:
                 min_dist = dist
                 final_loc = loc
@@ -357,7 +376,7 @@ class Cat:
             if method == "minimax":
                 next_loc = self.minimax_move()
             elif method == "Dijkstra":
-                next_loc = self.dijkstra_move()
+                next_loc = self.dijkstra_move(target=CONST_MOUSE)
             else:  # randomly pick one direction
                 curr_direction = DIRECTIONS[int(self.loc[0] % 2)]
                 next_direction = random.sample(curr_direction, 1)[0]
@@ -492,7 +511,7 @@ class Game:
                 for i in range(len(self.dogs)):
                     print("DOG no.{}'s turn, round: {}".format(i, num_round + 1))
                     new_dog = self.dogs[i]
-                    new_dog_loc = new_dog.get_new_loc()
+                    new_dog_loc = new_dog.get_new_loc(self.status)
                     self.status.update_board_animal(new_dog.loc, new_dog_loc, CONST_DOG)
                     self.dogs[i].loc = new_dog_loc
                     if is_adjacent(new_dog_loc, self.cat.loc):
@@ -506,7 +525,10 @@ class Game:
             print("CAT's turn, round:{}".format(num_round + 1))
             while True:
                 if not self.cat.eat_mouse:
-                    new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df), method="minimax")
+                    # new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df),
+                    #                             method="minimax")
+                    new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df),
+                                                method="Dijkstra")
                 else:
                     new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df), method="Dijkstra")
 
@@ -533,11 +555,11 @@ class Game:
 
 
 if __name__ == "__main__":
-    n_mouse = 0
-    board_size = 5
-    n_dog = 0
+    n_mouse = 3
+    board_size = 11
+    n_dog = 2
     n_food = 0
-    game = Game(n=board_size, n_food=n_food, n_mouse=n_mouse, n_dog=n_dog, dog_move_interval=3)
+    game = Game(n=board_size, n_food=n_food, n_mouse=n_mouse, n_dog=n_dog, dog_move_interval=2)
     game.play_game()
 
 
