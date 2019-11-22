@@ -128,7 +128,7 @@ class Human:
 
 
 class Cat:
-    def __init__(self, loc, is_eat, search_depth=5):
+    def __init__(self, loc, is_eat, search_depth=3):
         self.loc = loc
         self.eat_mouse = is_eat
         self.met_dog = False
@@ -222,14 +222,12 @@ class Cat:
             max_val = float("-inf")
             for directions in curr_directions:
                 next_loc = loc[0] + directions[0], loc[1] + directions[1]
-                if next_loc[0] < 0 or next_loc[0] >= self.board.n - 1 or next_loc[1] < 0 or next_loc[
-                    1] >= self.board.n - 1:
+                if next_loc[0] < 0 or next_loc[0] >= self.board.n - 1 or next_loc[1] < 0 or next_loc[1] >= self.board.n - 1:
                     continue
                 if next_loc in visited["cat"]:
                     continue
 
                 if next_loc not in self.board.loc_dict:
-
                     # visited["cat"].add(next_loc)
 
                     self.board.loc_dict.pop(loc)
@@ -241,7 +239,8 @@ class Cat:
 
                     self.board.loc_dict.pop(next_loc)
                     self.board.loc_dict[loc] = CONST_CAT
-                elif next_loc in self.board.loc_dict and self.board.loc_dict[next_loc] == CONST_MOUSE:
+
+                elif self.board.loc_dict.get(next_loc, 0) == CONST_MOUSE:
                     self.board.loc_dict.pop(loc)
                     self.board.loc_dict[next_loc] = CONST_CAT
                     print("cat move:", loc, next_loc)
@@ -259,7 +258,7 @@ class Cat:
                 print("alpha, beta for cat turn:", alpha, beta)
                 if beta <= alpha:
                     break
-            # print("cat returned", max_val, alpha, beta, next_loc)
+            print("cat returned", max_val, alpha, beta, next_loc)
             self.minimax_score[loc] = max_val
             return max_val
 
@@ -270,21 +269,21 @@ class Cat:
                     if check_valid_move(self.board.loc_dict, self.board.n, (i, j), who=CONST_OBSTACLE,
                                         verbose=False) and \
                             ((i, j) not in visited["human"]):
-                        visited["human"].add((i, j))
+                        # visited["human"].add((i, j))
                         self.board.loc_dict[(i, j)] = CONST_OBSTACLE
                         print("human's choice:", (i, j))
                         self.board.show_board()
                         score = self.minimax(loc, depth - 1, alpha, beta, visited,
                                              is_cat=True)
                         self.board.loc_dict.pop((i, j))
-                        visited["human"].remove((i, j))
+                        # visited["human"].remove((i, j))
                         min_val = min(min_val, score)
                         beta = min(beta, score)
                         print("alpha, beta for human turn:", alpha, beta)
                         if beta <= alpha:
                             print("human returned:", (i, j), min_val, alpha, beta, score)
                             return min_val
-            # print("human used all loop returned:", (i, j), min_val, alpha, beta, score)
+            print("human used all loop returned:", (i, j), min_val, alpha, beta, score)
             return min_val
 
     def dijkstra_dist(self, loc, target):
@@ -527,19 +526,26 @@ class Game:
             while True:
                 # check if there are available move for cat
                 is_even_num = int(self.cat.loc[0] % 2)
+                can_escape = False
                 for move in DIRECTIONS[is_even_num]:
                     next_loc = self.cat.loc[0] + move[0], self.cat.loc[1] + move[1]
-                    if not check_valid_move(self.status.loc_dict, self.status.n, next_loc):
-                        if self.status.loc_dict.get(next_loc, 0) != CONST_MOUSE:
-                            print("CAT was trapped by you!!")
-                            return
+                    if check_valid_move(self.status.loc_dict, self.status.n, next_loc) or \
+                        self.status.loc_dict.get(next_loc, 0) == CONST_MOUSE:
+                        can_escape = True
+                        break
+
+                if not can_escape:
+                    print("CAT was trapped by you!!")
+                    return
+
                 if not self.cat.eat_mouse:
                     new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df),
                                                 method="minimax")
                     # new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df),
                     #                             method="Dijkstra")
                 else:
-                    new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df), method="Dijkstra")
+                    new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df),
+                                                method="Dijkstra")
 
                 if new_cat_loc in self.status.loc_dict and \
                         self.status.loc_dict[new_cat_loc] == CONST_MOUSE:  # cat eats a mouse
