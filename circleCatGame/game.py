@@ -20,12 +20,12 @@ DIRECTIONS = {
 
 
 class Board:
-    def __init__(self, n, n_food, n_mouse, n_dog, n_obstacle=0):
-        # TODO: add initial obstacles
+    def __init__(self, n, n_food, n_mouse, n_dog, n_obstacle=6):
         self.n = n
         self.n_food = n_food
         self.n_mouse = n_mouse
         self.n_dog = n_dog
+        self.n_obstacle = n_obstacle
         self.loc_dict = {}
 
     def get_nodeType(self, loc):
@@ -35,6 +35,8 @@ class Board:
 
     def random_place_mouse_food_dog(self, n_times, nodeType):
         for i in range(n_times):
+            if len(self.loc_dict) > 0.5 * (self.n * self.n):
+                break
             loc = generate_random_locations(self.n, self.loc_dict)
             self.loc_dict[loc] = nodeType
 
@@ -46,6 +48,7 @@ class Board:
         # place mouses and food
         self.random_place_mouse_food_dog(self.n_mouse, CONST_MOUSE)
         self.random_place_mouse_food_dog(self.n_food, CONST_FOOD)
+        self.random_place_mouse_food_dog(self.n_obstacle, CONST_OBSTACLE)
         self.random_place_mouse_food_dog(self.n_dog, CONST_DOG)
 
     def update_board_human(self, loc):
@@ -402,12 +405,12 @@ class Dog:
 
 
 class Game:
-    def __init__(self, n, n_food, n_mouse, n_dog, dog_move_interval):
+    def __init__(self, n, n_obstacle, n_food, n_mouse, n_dog, dog_move_interval):
         assert n_food == 0, "sorry, this version doesn't support food"
 
         self.size = n
         # board
-        self.status = Board(n, n_food, n_mouse, n_dog)
+        self.status = Board(n, n_food, n_mouse, n_dog, n_obstacle=n_obstacle)
         self.status.init_board()
         # human
         self.human = Human()
@@ -525,10 +528,10 @@ class Game:
             print("CAT's turn, round:{}".format(num_round + 1))
             while True:
                 if not self.cat.eat_mouse:
-                    # new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df),
-                    #                             method="minimax")
                     new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df),
-                                                method="Dijkstra")
+                                                method="minimax")
+                    # new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df),
+                    #                             method="Dijkstra")
                 else:
                     new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df), method="Dijkstra")
 
@@ -555,11 +558,13 @@ class Game:
 
 
 if __name__ == "__main__":
-    n_mouse = 3
+    n_mouse = 0
     board_size = 11
     n_dog = 2
     n_food = 0
-    game = Game(n=board_size, n_food=n_food, n_mouse=n_mouse, n_dog=n_dog, dog_move_interval=2)
+    n_obstacle = 5
+    game = Game(n=board_size, n_obstacle=n_obstacle, n_food=n_food, n_mouse=n_mouse,
+                n_dog=n_dog, dog_move_interval=2)
     game.play_game()
 
 
