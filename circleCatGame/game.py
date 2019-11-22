@@ -1,6 +1,7 @@
 import random
 import copy
 import heapq
+
 from utils import check_valid_move, generate_random_locations, is_adjacent, is_on_border
 # from utils import *
 
@@ -128,14 +129,13 @@ class Human:
 
 
 class Cat:
-    def __init__(self, loc, is_eat, search_depth=3):
+    def __init__(self, loc, is_eat):
         self.loc = loc
         self.eat_mouse = is_eat
         self.met_dog = False
         # each position corresponding a score
         # each key is location, each value is a score
         self.minimax_score = {}
-        self.search_depth = search_depth
 
     def rearrange_direction(self, loc, directions):
         direction_score = {}
@@ -193,13 +193,7 @@ class Cat:
         #           currently the score is set to the degree of freedom of each mouse
         if loc in self.mouse_df:
             print("find a mouse to eat:", loc)
-            size = self.board.n - 1
-            x_dist = min(loc[0], size - loc[0])
-            y_dist = min(loc[1], size - loc[1])
-            dist = min(x_dist, y_dist)
-            if dist == 0:
-                return float("inf")
-            return self.mouse_df[loc] / dist
+            return float("inf")
 
         if depth == 0:
             # score is calculated as df / Euclidean distance
@@ -216,17 +210,15 @@ class Cat:
         curr_directions = DIRECTIONS[int(loc[0] % 2)]
         curr_directions = self.rearrange_direction(self.loc, curr_directions)
         if is_cat:
-            if loc in self.minimax_score:
-                return self.minimax_score[loc]
-
             max_val = float("-inf")
             for directions in curr_directions:
                 next_loc = loc[0] + directions[0], loc[1] + directions[1]
-                if next_loc[0] < 0 or next_loc[0] >= self.board.n - 1 or next_loc[1] < 0 or next_loc[1] >= self.board.n - 1:
+                if next_loc[0] < 0 or next_loc[0] >= self.board.n - 1 or next_loc[1] < 0 or next_loc[
+                    1] >= self.board.n - 1:
                     continue
                 if next_loc in visited["cat"]:
                     continue
-
+                print("cat attemped move:", next_loc)
                 if next_loc not in self.board.loc_dict:
                     # visited["cat"].add(next_loc)
 
@@ -315,7 +307,8 @@ class Cat:
                 directions = DIRECTIONS[is_even_row]
                 for d in directions:
                     next_node = new_node[0] + d[0], new_node[1] + d[1]
-                    if check_valid_move(self.board.loc_dict, self.board.n, next_node, who=CONST_OBSTACLE, verbose=False) or \
+                    if check_valid_move(self.board.loc_dict, self.board.n, next_node, who=CONST_OBSTACLE,
+                                        verbose=False) or \
                             self.board.loc_dict.get(next_node, 0) == CONST_MOUSE:
                         if next_node in visited:
                             continue
@@ -326,7 +319,7 @@ class Cat:
     def dijkstra_move(self, target="border"):
         #  check if the cat is on the border
         if self.loc[0] == 0:
-            return self.loc[0]-1, self.loc[1]
+            return self.loc[0] - 1, self.loc[1]
         elif self.loc[0] == self.board.n - 1:
             return self.loc[0] + 1, self.loc[1]
         elif self.loc[1] == 0:
@@ -361,7 +354,7 @@ class Cat:
                 final_loc = loc
         return final_loc
 
-    def move(self, status, score, method="minimax"):
+    def move(self, status, score, method="minimax", search_depth=3):
         # first should detect is there a mouse around
         # if yes, must go to the mouse
         # strategy:
@@ -372,6 +365,7 @@ class Cat:
         # TODO: if got food, can move two steps
         self.board = status
         self.mouse_df = score
+        self.search_depth = search_depth
         if not self.eat_mouse:
             if method == "minimax":
                 next_loc = self.minimax_move()
@@ -479,13 +473,13 @@ class Game:
                     self.mouse_df[base_mouse_loc] -= 1
                     self.mouse_df[new_mouse_loc] -= 1
 
-    def play_game(self):
+    def play_game(self, method, max_depth):
         num_round = 0
         print("GAME start!!")
         self.status.show_board()
         while True:
             # human round
-            print("HUMAN's turn, round: {}".format(num_round+1))
+            print("HUMAN's turn, round: {}".format(num_round + 1))
             human_move = self.human.move(self.status)
             self.status.update_board_human(human_move)
             self.status.show_board()
@@ -530,19 +524,16 @@ class Game:
                 for move in DIRECTIONS[is_even_num]:
                     next_loc = self.cat.loc[0] + move[0], self.cat.loc[1] + move[1]
                     if check_valid_move(self.status.loc_dict, self.status.n, next_loc) or \
-                        self.status.loc_dict.get(next_loc, 0) == CONST_MOUSE:
+                            self.status.loc_dict.get(next_loc, 0) == CONST_MOUSE:
                         can_escape = True
                         break
 
                 if not can_escape:
                     print("CAT was trapped by you!!")
                     return
-
                 if not self.cat.eat_mouse:
                     new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df),
-                                                method="minimax")
-                    # new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df),
-                    #                             method="Dijkstra")
+                                                method=method, search_depth=max_depth)
                 else:
                     new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df),
                                                 method="Dijkstra")
@@ -564,19 +555,22 @@ class Game:
 
             self.status.update_board_animal(self.cat.loc, new_cat_loc, CONST_CAT)
             self.cat.loc = new_cat_loc
+            print("===========================")
             self.status.show_board()
 
             num_round += 1
 
 
 if __name__ == "__main__":
-    n_mouse = 0
-    board_size = 11
-    n_dog = 2
+    n_mouse = 2
+    board_size = 5
+    n_dog = 0
     n_food = 0
     n_obstacle = 5
+    method1 = "minimax"
+    max_depth = 3
+    method2 = "Dijkstra"
     game = Game(n=board_size, n_obstacle=n_obstacle, n_food=n_food, n_mouse=n_mouse,
                 n_dog=n_dog, dog_move_interval=2)
-    game.play_game()
-
+    game.play_game(method=method2, max_depth=max_depth)
 
