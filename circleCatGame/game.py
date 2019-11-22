@@ -330,10 +330,12 @@ class Cat:
         possible_loc = []
         for d in directions:
             next_loc = self.loc[0] + d[0], self.loc[1] + d[1]
-            if is_on_border(self.board.n, next_loc):
-                return next_loc
             if check_valid_move(self.board.loc_dict, self.board.n, next_loc):
+                if is_on_border(self.board.n, next_loc):
+                    print("directly return")
+                    return next_loc
                 possible_loc.append(next_loc)
+
 
         final_loc = self.loc
         min_dist = float("inf")
@@ -536,7 +538,7 @@ class Game:
 
 if __name__ == "__main__":
     n_mouse = 0
-    board_size = 5
+    board_size = 11
     n_dog = 0
     n_food = 0
     game = Game(n=board_size, n_food=n_food, n_mouse=n_mouse, n_dog=n_dog, dog_move_interval=MAX_INT)
