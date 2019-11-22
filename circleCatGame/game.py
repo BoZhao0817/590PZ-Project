@@ -1,7 +1,6 @@
 import random
 import copy
 import heapq
-import time
 from utils import check_valid_move, generate_random_locations, is_adjacent, is_on_border
 # from utils import *
 
@@ -146,10 +145,9 @@ class Cat:
             for key, val in self.mouse_df.items():
                 dist = abs(key[0] - new_loc[0]) + abs(key[1] - new_loc[1])
                 if dist == 0:  # the cat is next to a mouse, of course eat it
-                    direction_score[-1000000] = d
                     break
                 final_score = max(final_score, val / dist)
-            direction_score[final_score] = d
+            direction_score[-final_score] = d
         sorted_direction = [direction_score[key] for key in sorted(direction_score.keys())]
         return sorted_direction
 
@@ -171,7 +169,7 @@ class Cat:
                 self.board.loc_dict.pop(new_loc)
                 self.board.loc_dict[self.loc] = CONST_CAT
 
-            elif new_loc in self.board.loc_dict and self.board.loc_dict[new_loc] == CONST_MOUSE:  # this position is a mouse
+            elif self.board.loc_dict.get(new_loc, 0) == CONST_MOUSE:  # this position is a mouse
                 self.board.loc_dict.pop(self.loc)
                 self.board.loc_dict[new_loc] = CONST_CAT
                 # visited["cat"].add(new_loc)
@@ -527,6 +525,14 @@ class Game:
             # cat round
             print("CAT's turn, round:{}".format(num_round + 1))
             while True:
+                # check if there are available move for cat
+                is_even_num = int(self.cat.loc[0] % 2)
+                for move in DIRECTIONS[is_even_num]:
+                    next_loc = self.cat.loc[0] + move[0], self.cat.loc[1] + move[1]
+                    if not check_valid_move(self.status.loc_dict, self.status.n, next_loc):
+                        if self.status.loc_dict.get(next_loc, 0) != CONST_MOUSE:
+                            print("CAT was trapped by you!!")
+                            return
                 if not self.cat.eat_mouse:
                     new_cat_loc = self.cat.move(copy.deepcopy(self.status), copy.deepcopy(self.mouse_df),
                                                 method="minimax")
